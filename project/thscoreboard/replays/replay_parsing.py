@@ -106,34 +106,25 @@ def _Parse06(rep_raw):
     shots = ["ReimuA", "ReimuB", "MarisaA", "MarisaB"]
 
     rep_stages = []
-    for i, score in enumerate(replay.stages):
-        if replay.header.stage_offsets[i] != 0:
-            s = ReplayStage()
-            s.stage = i + 1
-            s.score = score.score
-            s.power = score.power
-            s.lives = score.lives
-            s.bombs = score.bombs
-            s.th06_rank = score.rank
-            rep_stages.append(s)
 
-    # adjust stage data to be end-of-stage
-    for i in range(len(rep_stages)):
-        if i < len(rep_stages) - 1:
-            """not the end yet"""
-            stage = rep_stages[i]
-            next_stage = rep_stages[i + 1]
+    enumerated_stages = list(enumerate(replay.stages))
+    enumerated_non_dummy_stages = list(filter(
+        lambda e: replay.file_header.stage_offsets[e[0]] != 0, enumerated_stages
+    ))
+    for (i, current_stage), (j, next_stage) in zip(
+        enumerated_non_dummy_stages, enumerated_non_dummy_stages[1:] + [(None, None)]
+    ):
+        s = ReplayStage(
+            stage=i + 1,
+            score = current_stage.score
+        )
+        if next_stage is not None:
+            s.power = next_stage.power
+            s.lives = next_stage.lives
+            s.bombs = next_stage.bombs
+            s.th06_rank = next_stage.rank
 
-            stage.power = next_stage.power
-            stage.lives = next_stage.lives
-            stage.bombs = next_stage.bombs
-            stage.th06_rank = next_stage.th06_rank
-        else:
-            stage = rep_stages[i]
-            stage.power = None
-            stage.lives = None
-            stage.bombs = None
-            stage.th06_rank = None
+        rep_stages.append(s)
 
     r_type = game_ids.ReplayTypes.REGULAR
     if len(rep_stages) == 1 and rep_raw[7] != 4:
@@ -143,10 +134,10 @@ def _Parse06(rep_raw):
         game=game_ids.GameIDs.TH06,
         shot=shots[rep_raw[6]],
         difficulty=rep_raw[7],
-        score=replay.header.score,
-        timestamp=time.strptime(replay.header.date, "%m/%d/%y"),
-        name=replay.header.name.replace("\x00", ""),
-        slowdown=replay.header.slowdown,
+        score=replay.file_header.score,
+        timestamp=time.strptime(replay.file_header.date, "%m/%d/%y"),
+        name=replay.file_header.name.replace("\x00", ""),
+        slowdown=replay.file_header.slowdown,
         replay_type=r_type,
         stages=rep_stages
     )
@@ -166,45 +157,29 @@ def _Parse07(rep_raw):
     shots = ["ReimuA", "ReimuB", "MarisaA", "MarisaB", "SakuyaA", "SakuyaB"]
 
     rep_stages = []
+    
+    enumerated_stages = list(enumerate(replay.stages))
+    enumerated_non_dummy_stages = list(filter(
+        lambda e: replay.file_header.stage_offsets[e[0]] != 0, enumerated_stages
+    ))
+    for (i, current_stage), (j, next_stage) in zip(
+        enumerated_non_dummy_stages, enumerated_non_dummy_stages[1:] + [(None, None)]
+    ):
+        s = ReplayStage(
+            stage=i + 1,
+            score = current_stage.score * 10
+        )
+        if next_stage is not None:
+            s.power = next_stage.power
+            s.piv = next_stage.piv
+            s.lives = next_stage.lives
+            s.bombs = next_stage.bombs
+            s.graze = next_stage.graze
+            s.point_items = next_stage.point_items
+            s.th07_cherry = next_stage.cherry
+            s.th07_cherrymax = next_stage.cherrymax
 
-    for i, score in enumerate(replay.stages):
-        if replay.file_header.stage_offsets[i] != 0:
-            s = ReplayStage()
-            s.stage = i + 1
-            s.score = score.score * 10
-            s.power = score.power
-            s.lives = score.lives
-            s.bombs = score.bombs
-            s.point_items = score.point_items
-            s.graze = score.graze
-            s.piv = score.piv
-            s.th07_cherry = score.cherry
-            s.th07_cherrymax = score.cherrymax
-            rep_stages.append(s)
-
-    for i in range(len(rep_stages)):
-        if i < len(rep_stages) - 1:
-            stage = rep_stages[i]
-            next_stage = rep_stages[i + 1]
-
-            stage.power = next_stage.power
-            stage.lives = next_stage.lives
-            stage.bombs = next_stage.bombs
-            stage.point_items = next_stage.point_items
-            stage.graze = next_stage.graze
-            stage.piv = next_stage.piv
-            stage.th07_cherry = next_stage.th07_cherry
-            stage.th07_cherrymax = next_stage.th07_cherrymax
-        else:
-            stage = rep_stages[i]
-            stage.power = None
-            stage.lives = None
-            stage.bombs = None
-            stage.point_items = None
-            stage.graze = None
-            stage.piv = None
-            stage.th07_cherry = None
-            stage.th07_cherrymax = None
+        rep_stages.append(s)
 
     r_type = game_ids.ReplayTypes.REGULAR
     if len(rep_stages) == 1 and replay.header.difficulty not in [4, 5]:
@@ -272,42 +247,32 @@ def _Parse08(rep_raw):
     #   else regular run
 
     route = None
-    for i, score in enumerate(replay.stages):
-        if replay.file_header.stage_offsets[i] != 0:
-            s = ReplayStage()
-            s.stage = i + 1
-            s.score = score.score * 10
-            s.power = score.power
-            s.lives = score.lives
-            s.bombs = score.bombs
-            s.point_items = score.point_items
-            s.graze = score.graze
-            s.piv = score.piv
-            if i == 6:
-                route = 'Final A'
-            elif i == 7:
-                route = 'Final B'
-            rep_stages.append(s)
 
-    for i in range(len(rep_stages)):
-        if i < len(rep_stages) - 1:
-            stage = rep_stages[i]
-            next_stage = rep_stages[i + 1]
+    enumerated_stages = list(enumerate(replay.stages))
+    enumerated_non_dummy_stages = list(filter(
+        lambda e: replay.file_header.stage_offsets[e[0]] != 0, enumerated_stages
+    ))
+    for (i, current_stage), (j, next_stage) in zip(
+        enumerated_non_dummy_stages, enumerated_non_dummy_stages[1:] + [(None, None)]
+    ):
+        s = ReplayStage(
+            stage=i + 1,
+            score = current_stage.score * 10,
+        )
+        if next_stage is not None:
+            s.power = next_stage.power
+            s.piv = next_stage.piv
+            s.lives = next_stage.lives
+            s.bombs = next_stage.bombs
+            s.graze = next_stage.graze
+            s.point_items = next_stage.point_items
+            
+        if i == 6:
+            route = 'Final A'
+        elif i == 7:
+            route = 'Final B'
 
-            stage.power = next_stage.power
-            stage.lives = next_stage.lives
-            stage.bombs = next_stage.bombs
-            stage.point_items = next_stage.point_items
-            stage.graze = next_stage.graze
-            stage.piv = next_stage.piv
-        else:
-            stage = rep_stages[i]
-            stage.power = None
-            stage.lives = None
-            stage.bombs = None
-            stage.point_items = None
-            stage.graze = None
-            stage.piv = None
+        rep_stages.append(s)
 
     r_type = game_ids.ReplayTypes.REGULAR
     if len(rep_stages) == 1 and replay.header.difficulty != 4:
@@ -448,30 +413,21 @@ def _Parse10(rep_raw):
     shots = ["ReimuA", "ReimuB", "ReimuC", "MarisaA", "MarisaB", "MarisaC"]
 
     rep_stages = []
-    for stage in replay.stages:
-        s = ReplayStage()
-        s.stage = stage.stage_num
-        s.score = stage.score * 10
-        s.power = stage.power
-        s.piv = stage.piv * 10
-        s.lives = stage.lives
-        rep_stages.append(s)
-
-    for i in range(len(rep_stages)):
-        if i < len(rep_stages) - 1:
-            stage = rep_stages[i]
-            next_stage = rep_stages[i + 1]
-
-            stage.score = next_stage.score
-            stage.power = next_stage.power
-            stage.piv = next_stage.piv
-            stage.lives = next_stage.lives
+    
+    for current_stage, next_stage in zip(
+        replay.stages, replay.stages[1:] + [None]
+    ):
+        s = ReplayStage(
+            stage=current_stage.stage_num,
+        )
+        if next_stage is not None:
+            s.score = next_stage.score * 10
+            s.power = next_stage.power
+            s.piv = next_stage.piv * 10
+            s.lives = next_stage.lives
         else:
-            stage = rep_stages[i]
-            stage.score = replay.header.score * 10
-            stage.power = None
-            stage.piv = None
-            stage.lives = None
+            s.score = replay.header.score * 10
+        rep_stages.append(s)
 
     r_type = game_ids.ReplayTypes.REGULAR
     if len(rep_stages) == 1 and replay.header.difficulty != 4:
@@ -503,36 +459,23 @@ def _Parse11(rep_raw):
     shots = ["ReimuA", "ReimuB", "ReimuC", "MarisaA", "MarisaB", "MarisaC"]
 
     rep_stages = []
-    for stage in replay.stages:
-        s = ReplayStage()
-        s.stage = stage.stage_num
-        s.score = stage.score * 10
-        s.piv = stage.piv
-        s.graze = stage.graze
-        s.power = stage.power
-        s.lives = stage.lives
-        s.life_pieces = stage.life_pieces
-        rep_stages.append(s)
 
-    for i in range(len(rep_stages)):
-        if i < len(rep_stages) - 1:
-            stage = rep_stages[i]
-            next_stage = rep_stages[i + 1]
-
-            stage.score = next_stage.score
-            stage.piv = next_stage.piv
-            stage.graze = next_stage.graze
-            stage.power = next_stage.power
-            stage.lives = next_stage.lives
-            stage.life_pieces = next_stage.life_pieces
+    for current_stage, next_stage in zip(
+        replay.stages, replay.stages[1:] + [None]
+    ):
+        s = ReplayStage(
+            stage=current_stage.stage_num,
+        )
+        if next_stage is not None:
+            s.score = next_stage.score * 10
+            s.power = next_stage.power
+            s.piv = next_stage.piv
+            s.lives = next_stage.lives
+            s.life_pieces = next_stage.life_pieces
+            s.graze = next_stage.graze
         else:
-            stage = rep_stages[i]
-            stage.score = replay.header.score * 10
-            stage.piv = None
-            stage.graze = None
-            stage.power = None
-            stage.lives = None
-            stage.life_pieces = None
+            s.score = replay.header.score * 10
+        rep_stages.append(s)
 
     r_type = game_ids.ReplayTypes.REGULAR
     if len(rep_stages) == 1 and replay.header.difficulty != 4:
@@ -564,45 +507,28 @@ def _Parse12(rep_raw):
     shots = ["ReimuA", "ReimuB", "MarisaA", "MarisaB", "SanaeA", "SanaeB"]
 
     rep_stages = []
-    for stage in replay.stages:
-        s = ReplayStage()
-        s.stage = stage.stage_num
-        s.score = stage.score * 10
-        s.power = stage.power
-        s.piv = (math.trunc(stage.piv / 1000)) * 10
-        s.lives = stage.lives
-        s.life_pieces = stage.life_pieces
-        #   fix zun fuckery
-        if s.life_pieces > 0:
-            s.life_pieces -= 1
-        s.bombs = stage.bombs
-        s.bomb_pieces = stage.bomb_pieces
-        s.graze = stage.graze
-        rep_stages.append(s)
 
-    for i in range(len(rep_stages)):
-        if i < len(rep_stages) - 1:
-            stage = rep_stages[i]
-            next_stage = rep_stages[i + 1]
-
-            stage.score = next_stage.score
-            stage.power = next_stage.power
-            stage.piv = next_stage.piv
-            stage.lives = next_stage.lives
-            stage.life_pieces = next_stage.life_pieces
-            stage.bombs = next_stage.bombs
-            stage.bomb_pieces = next_stage.bomb_pieces
-            stage.graze = next_stage.graze
+    for current_stage, next_stage in zip(
+        replay.stages, replay.stages[1:] + [None]
+    ):
+        s = ReplayStage(
+            stage=current_stage.stage_num,
+        )
+        if next_stage is not None:
+            s.score = next_stage.score * 10
+            s.power = next_stage.power
+            s.piv = (math.trunc(next_stage.piv / 1000)) * 10
+            s.lives = next_stage.lives
+            s.life_pieces = next_stage.life_pieces
+            #   fix zun fuckery
+            if s.life_pieces > 0:
+                s.life_pieces -= 1
+            s.bombs = next_stage.bombs
+            s.bomb_pieces = next_stage.bomb_pieces
+            s.graze = next_stage.graze
         else:
-            stage = rep_stages[i]
-            stage.score = replay.header.score * 10
-            stage.power = None
-            stage.piv = None
-            stage.lives = None
-            stage.life_pieces = None
-            stage.bombs = None
-            stage.bomb_pieces = None
-            stage.graze = None
+            s.score = replay.header.score * 10
+        rep_stages.append(s)
 
     r_type = game_ids.ReplayTypes.REGULAR
     if len(rep_stages) == 1 and replay.header.difficulty != 4:
@@ -648,49 +574,28 @@ def _Parse13(rep_raw):
             spell_card_id=replay.header.spell_practice_id
         )
 
-    for stage in replay.stages:
-        s = ReplayStage()
-        s.stage = stage.stage_num
-        s.score = stage.score * 10
-        s.power = stage.power
-        s.piv = (math.trunc(stage.piv / 1000)) * 10
-        s.lives = stage.lives
-        s.life_pieces = stage.life_pieces
-        s.bombs = stage.bombs
-        s.bomb_pieces = stage.bomb_pieces
-        s.graze = stage.graze
-        s.th13_trance = stage.trance
-        s.extends = stage.extends
-        rep_stages.append(s)
-
-    for i in range(len(rep_stages)):
-        if i < len(rep_stages) - 1:
-            stage = rep_stages[i]
-            next_stage = rep_stages[i + 1]
-
-            stage.score = next_stage.score
-            stage.power = next_stage.power
-            stage.piv = next_stage.piv
-            stage.lives = next_stage.lives
-            stage.life_pieces = next_stage.life_pieces
-            stage.bombs = next_stage.bombs
-            stage.bomb_pieces = next_stage.bomb_pieces
-            stage.graze = next_stage.graze
-            stage.th13_trance = next_stage.th13_trance
-            stage.extends = next_stage.extends
+    for current_stage, next_stage in zip(
+        replay.stages, replay.stages[1:] + [None]
+    ):
+        s = ReplayStage(
+            stage=current_stage.stage_num,
+            score=replay.header.score * 10
+        )
+        if next_stage is not None:
+            s.score = next_stage.score * 10
+            s.power = next_stage.power
+            s.piv = (math.trunc(next_stage.piv / 1000)) * 10
+            s.lives = next_stage.lives
+            s.life_pieces = next_stage.life_pieces
+            s.bombs = next_stage.bombs
+            s.bomb_pieces = next_stage.bomb_pieces
+            s.graze = next_stage.graze
+            s.th13_trance = next_stage.trance
+            s.extends = next_stage.extends
         else:
-            stage = rep_stages[i]
-            stage.score = replay.header.score * 10
-            stage.power = None
-            stage.piv = None
-            stage.lives = None
-            stage.life_pieces = None
-            stage.bombs = None
-            stage.bomb_pieces = None
-            stage.graze = None
-            stage.th13_trance = None
-            stage.extends = None
-
+            s.score = replay.header.score * 10
+        rep_stages.append(s)
+        
     r_type = game_ids.ReplayTypes.REGULAR
     if len(rep_stages) == 1 and replay.header.difficulty != 4:
         r_type = game_ids.ReplayTypes.STAGE_PRACTICE
@@ -734,42 +639,24 @@ def _Parse14(rep_raw):
             spell_card_id=replay.header.spell_practice_id
         )
 
-    for stage in replay.stages:
-        s = ReplayStage()
-        s.stage = stage.stage_num
-        s.score = stage.score * 10
-        s.power = stage.power
-        s.piv = (math.trunc(stage.piv / 1000)) * 10
-        s.lives = stage.lives
-        s.life_pieces = stage.life_pieces
-        s.bombs = stage.bombs
-        s.bomb_pieces = stage.bomb_pieces
-        s.graze = stage.graze
-        rep_stages.append(s)
-
-    for i in range(len(rep_stages)):
-        if i < len(rep_stages) - 1:
-            stage = rep_stages[i]
-            next_stage = rep_stages[i + 1]
-
-            stage.score = next_stage.score
-            stage.power = next_stage.power
-            stage.piv = next_stage.piv
-            stage.lives = next_stage.lives
-            stage.life_pieces = next_stage.life_pieces
-            stage.bombs = next_stage.bombs
-            stage.bomb_pieces = next_stage.bomb_pieces
-            stage.graze = next_stage.graze
+    for current_stage, next_stage in zip(
+        replay.stages, replay.stages[1:] + [None]
+    ):
+        s = ReplayStage(
+            stage=current_stage.stage_num,
+        )
+        if next_stage is not None:
+            s.score = next_stage.score * 10
+            s.power = next_stage.power
+            s.piv = (math.trunc(next_stage.piv / 1000)) * 10
+            s.lives = next_stage.lives
+            s.life_pieces = next_stage.life_pieces
+            s.bombs = next_stage.bombs
+            s.bomb_pieces = next_stage.bomb_pieces
+            s.graze = next_stage.graze
         else:
-            stage = rep_stages[i]
-            stage.score = replay.header.score * 10
-            stage.power = None
-            stage.piv = None
-            stage.lives = None
-            stage.life_pieces = None
-            stage.bombs = None
-            stage.bomb_pieces = None
-            stage.graze = None
+            s.score = replay.header.score * 10
+        rep_stages.append(s)
 
     r_type = game_ids.ReplayTypes.REGULAR
     if len(rep_stages) == 1 and replay.header.difficulty != 4:
