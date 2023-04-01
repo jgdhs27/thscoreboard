@@ -1,3 +1,6 @@
+const replayTableBatchSize = 50;
+const batchedTableParentHtml = document.getElementById('replay-table-bodies');
+
 // Initialize global variables if they were not provided by html
 // Needed for jest environment
 
@@ -15,8 +18,8 @@ try {
   xhr.responseType = 'json';
   xhr.onload = function() {
     if (xhr.status === 200) {
-      populateTable(xhr.response);
       allReplays = xhr.response;
+      constructAndRenderBatchedTable(xhr.response);
     } else {
       document.getElementById('replay-table').innerHTML = '<p style="color: red;">Failed to load replays</p>';
     }
@@ -32,7 +35,7 @@ function onClick(elm) {
   
   activeFilters = updateFilters(activeFilters, filterType, value);
   const filteredReplays = filterReplays(activeFilters, allReplays);
-  populateTable(filteredReplays);
+  constructAndRenderBatchedTable(filteredReplays);
 }
 
 function updateFilters(filters, filterType, value) {
@@ -62,14 +65,49 @@ function filterReplays(filters, replays) {
   return filteredReplays;
 }
 
-function populateTable(replays) {
-  const replayTableHtml = document.getElementById('replay-table');
-  const tbody = replayTableHtml.getElementsByTagName('tbody')[0];
+function constructAndRenderBatchedTable(replays) {
+  clearBatchedTableHtml();
   
-  // Clear the existing rows from the table body
-  tbody.innerHTML = '';
+  let startIndex = 0;
+  let endIndex = Math.min(replayTableBatchSize, replays.length);
+  while (startIndex < replays.length) {
+    isFirstTable = startIndex === 0;
+    constructAndRenderTableBody(
+      replays, startIndex, endIndex, isFirstTable
+    );
+    startIndex += replayTableBatchSize;
+    endIndex += replayTableBatchSize;
+    endIndex = Math.min(endIndex, replays.length);
+  }
+}
 
-  for (const replay of replays) {
+function constructAndRenderTableBody(replays, startIndex, endIndex, isFirstTable) {
+  const newTableHtml = document.createElement("table");
+  newTableHtml.className = "replay-table";
+  const newTBodyHtml = document.createElement("tbody");
+
+  if (isFirstTable) {
+    populateTable(newTBodyHtml, replays, startIndex, endIndex);
+  } else {
+    delayedPopulateTable(newTBodyHtml, replays, startIndex, endIndex);
+  }
+
+  newTableHtml.appendChild(newTBodyHtml);
+  batchedTableParentHtml.appendChild(newTableHtml);
+}
+
+function delayedPopulateTable(tbodyHtml, replays, startIndex, endIndex) {
+  // Delays the execution of the populateTable function to prevent blocking the
+  // main thread and improve performance. This allows other code to run, such
+  // as UI updates, while the table is being populated.
+  setTimeout(() => {
+    populateTable(tbodyHtml, replays, startIndex, endIndex)
+  }, 1);
+}
+
+function populateTable(tbodyHtml, replays, startIndex, endIndex) {
+  for (let i = startIndex; i < endIndex; i++) {
+    const replay = replays[i];
     const row = document.createElement('tr');
     for (const [columnName, value] of Object.entries(replay)) {
       const cell = createTableCell(columnName, value)
@@ -77,19 +115,11 @@ function populateTable(replays) {
         row.appendChild(cell);
       }
     }
-    tbody.appendChild(row);
+    tbodyHtml.appendChild(row);
   }
 }
 
-function createLink(url, text) {
-  const link = document.createElement('a'); // 'a' as in the <a> HTML tag
-  link.href = url;
-  const linkText = document.createTextNode(text);
-  link.appendChild(linkText)
-  return link;
-}
-
-function createTableCell(columnName, value) {
+ function createTableCell(columnName, value) {
   const cell = document.createElement('td');
   if ((columnName === "Game" && !showGameColumn) || columnName === "Id") {
     return null;
@@ -103,6 +133,18 @@ function createTableCell(columnName, value) {
     cell.appendChild(text);
   }
   return cell;
+}
+
+function createLink(url, text) {
+  const link = document.createElement('a'); // 'a' as in the <a> HTML tag
+  link.href = url;
+  const linkText = document.createTextNode(text);
+  link.appendChild(linkText)
+  return link;
+}
+
+function clearBatchedTableHtml() {
+  batchedTableParentHtml.innerHTML = '';
 }
 
 try {
