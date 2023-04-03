@@ -106,6 +106,7 @@ function delayedPopulateTable(tbodyHtml, replays, startIndex, endIndex) {
 }
 
 function populateTable(tbodyHtml, replays, startIndex, endIndex) {
+  console.log(startIndex, endIndex);
   for (let i = startIndex; i < endIndex; i++) {
     const replay = replays[i];
     const row = document.createElement('tr');

@@ -1,6 +1,7 @@
 """Contains views which list various replays."""
 
-from django.http import JsonResponse
+from typing import Optional
+from django.http import HttpRequest, JsonResponse
 from django.views.decorators import http as http_decorators
 from django.shortcuts import get_object_or_404, render
 
@@ -10,9 +11,13 @@ from replays.replays_to_json import convert_replays_to_serializable_list
 
 
 @http_decorators.require_safe
-def game_scoreboard_json(request, game_id: str):
+def game_scoreboard_json(request: HttpRequest, game_id: str):
+    limit = request.GET.get("limit", None)
+    if limit is not None:
+        limit = int(limit)
+    replays = _get_all_replay_for_game(game_id, limit=limit)
     return JsonResponse(
-        convert_replays_to_serializable_list(_get_all_replay_for_game(game_id)),
+        convert_replays_to_serializable_list(replays),
         safe=False,
     )
 
@@ -30,11 +35,14 @@ def game_scoreboard(request, game_id: str):
     )
 
 
-def _get_all_replay_for_game(game_id: str) -> dict:
-    return (
+def _get_all_replay_for_game(game_id: str, limit: Optional[int]) -> dict:
+    queryset = (
         models.Replay.objects.select_related("shot")
         .filter(category=models.Category.REGULAR)
         .filter(shot__game=game_id)
         .filter(replay_type=1)
         .order_by("-score")
     )
+    if limit:
+        queryset.query.set_limits(high=limit)
+    return queryset

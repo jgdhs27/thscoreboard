@@ -29,4 +29,5 @@ def convert_replays_to_serializable_list(
         }
         for replay in replays
     ]
+    print(replay_dicts)
     return replay_dicts
