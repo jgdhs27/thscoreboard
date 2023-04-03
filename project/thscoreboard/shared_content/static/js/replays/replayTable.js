@@ -1,4 +1,5 @@
 const replayTableBatchSize = 50;
+const lazyApiRequestSize = 200;
 const batchedTableParentHtml = document.getElementById('replay-table-bodies');
 
 // Initialize global variables if they were not provided by html
@@ -8,34 +9,68 @@ var activeFilters = {};
 var allReplays = [];
 
 try {
-  // initialize table content
-  const xhr = new XMLHttpRequest();
+  prepareReplayRequest();
+} catch(error) {
+  // Catch ReferenceError for test suite but do nothing
+}
+
+function prepareReplayRequest() {
+  let requestUrl;
+  let useMultiStageRequest;
   if(window.location.pathname === '/') {
-    xhr.open('GET', window.location.href + 'replays/index/json', true);
+    requestUrl = window.location.href + 'replays/index/json';
+    useMultiStageRequest = false;
+  } else if (window.location.pathname.includes("/user")) {
+    requestUrl = window.location.toString() + "/json";
+    useMultiStageRequest = false;
   } else {
-    xhr.open('GET', window.location.toString() + "/json", true);
+    requestUrl = window.location.toString() + "/json";
+    useMultiStageRequest = true;
   }
+  console.log(requestUrl, useMultiStageRequest)
+  useMultiStageRequest ?
+    requestReplaysWithLazyStageFirst(requestUrl) :
+    requestReplays(requestUrl);
+}
+
+function requestReplays(requestUrl) {
+  const xhr = new XMLHttpRequest();
   xhr.responseType = 'json';
+  xhr.open('GET', requestUrl, true);
   xhr.onload = function() {
     if (xhr.status === 200) {
       allReplays = xhr.response;
-      constructAndRenderBatchedTable(xhr.response);
+      filterAndDisplayReplays();
     } else {
       document.getElementById('replay-table').innerHTML = '<p style="color: red;">Failed to load replays</p>';
     }
   };
   xhr.send();
-} catch(error) {
-  // Catch ReferenceError for test suite but do nothing
+}
+
+function requestReplaysWithLazyStageFirst(requestUrl) {
+  limitedRequestUrl = requestUrl.concat("?limit=" + lazyApiRequestSize);
+  const xhr = new XMLHttpRequest();
+  xhr.responseType = 'json';
+  xhr.open('GET', limitedRequestUrl, true);
+  xhr.onload = function() {
+    if (xhr.status === 200) {
+      allReplays = xhr.response;
+      requestReplays(requestUrl); // request full replays aftwerwards
+      filterAndDisplayReplays();
+    } else {
+      document.getElementById('replay-table').innerHTML = '<p style="color: red;">Failed to load replays</p>';
+    }
+  };
+  xhr.send();
 }
 
 function onClick(elm) {
   const filterType = elm.getAttribute('filterType');
   const value = elm.getAttribute('value');
   
-  activeFilters = updateFilters(activeFilters, filterType, value);
-  const filteredReplays = filterReplays(activeFilters, allReplays);
-  constructAndRenderBatchedTable(filteredReplays);
+  updateFilters(activeFilters, filterType, value);
+  filterAndDisplayReplays();
 }
 
 function updateFilters(filters, filterType, value) {
@@ -53,6 +88,11 @@ function updateFilters(filters, filterType, value) {
     }
   }
   return filters;
+}
+
+function filterAndDisplayReplays() {
+  const filteredReplays = filterReplays(activeFilters, allReplays);
+  constructAndRenderBatchedTable(filteredReplays);
 }
 
 function filterReplays(filters, replays) {
@@ -106,7 +146,6 @@ function delayedPopulateTable(tbodyHtml, replays, startIndex, endIndex) {
 }
 
 function populateTable(tbodyHtml, replays, startIndex, endIndex) {
-  console.log(startIndex, endIndex);
   for (let i = startIndex; i < endIndex; i++) {
     const replay = replays[i];
     const row = document.createElement('tr');
